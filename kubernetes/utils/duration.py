@@ -13,7 +13,7 @@
 # limitations under the License.
 import datetime
 import re
-from typing import Annotated, List, Union
+from typing import Annotated, List, TypeAlias, Union
 
 import durationpy
 from pydantic import BeforeValidator, PlainSerializer
@@ -21,7 +21,7 @@ from pydantic import BeforeValidator, PlainSerializer
 # Initialize our RE statically, rather than compiling for every call. This has
 # the downside that it'll get compiled at import time but that shouldn't
 # really be a big deal.
-reDuration = re.compile(r'^([0-9]{1,5}(h|m|s|ms)){1,4}$')
+reDuration = re.compile(r"^([0-9]{1,5}(h|m|s|ms)){1,4}$")
 
 # maxDuration_ms is the maximum duration that GEP-2257 can support, in
 # milliseconds.
@@ -135,11 +135,16 @@ def format_duration(delta: datetime.timedelta) -> str:
 
     # Check range early.
     if delta < datetime.timedelta(0):
-        raise ValueError("Cannot express negative durations in GEP-2257: {}".format(delta))
+        raise ValueError(
+            "Cannot express negative durations in GEP-2257: {}".format(delta)
+        )
 
     if delta > datetime.timedelta(milliseconds=maxDuration_ms):
         raise ValueError(
-            "Cannot express durations longer than 99999h59m59s999ms in GEP-2257: {}".format(delta))
+            "Cannot express durations longer than 99999h59m59s999ms in GEP-2257: {}".format(
+                delta
+            )
+        )
 
     # durationpy.to_str() is happy to use floating-point seconds, which
     # GEP-2257 is _not_ happy with. So start by peeling off any microseconds
@@ -148,8 +153,7 @@ def format_duration(delta: datetime.timedelta) -> str:
 
     if (delta_us % 1000) != 0:
         raise ValueError(
-            "Cannot express sub-millisecond precision in GEP-2257: {}"
-            .format(delta)
+            "Cannot express sub-millisecond precision in GEP-2257: {}".format(delta)
         )
 
     # After that, do the usual div & mod tree to take seconds and get hours,
@@ -176,12 +180,13 @@ def format_duration(delta: datetime.timedelta) -> str:
 
     return "".join(output)
 
+
 """
 Duration validator and serializer that can handle GEP-2257 Duration.
 
 Examples:
 class DurationSpec(BaseModel):
-    time_to_live: Duration = Field(validation_alias=AliasChoices("timeToLive", "time_to_live"), serialization_alias="timeToLive")
+    time_to_live: V1Duration = Field(validation_alias=AliasChoices("timeToLive", "time_to_live"), serialization_alias="timeToLive")
 >>> DurationSpec(time_to_live=datetime.timedelta(hours=1, minutes=5))
 DurationSpec(time_to_live=datetime.timedelta(seconds=3900))
 >>> DurationSpec.model_validate({"timeToLive": "2h3m7s"})
@@ -189,7 +194,7 @@ DurationSpec(time_to_live=datetime.timedelta(seconds=7387))
 >>> DurationSpec.model_validate_json(r'{"timeToLive": "37s"}')
 DurationSpec(time_to_live=datetime.timedelta(seconds=37))
 """
-Duration = Annotated[
+V1Duration: TypeAlias = Annotated[
     datetime.timedelta,
     BeforeValidator(func=parse_duration, json_schema_input_type="str"),
     PlainSerializer(func=format_duration, return_type=str, when_used="unless-none"),

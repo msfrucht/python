@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from decimal import Decimal, DecimalException, InvalidOperation
+from typing import Union
 
 _EXPONENTS = {
     "n": -3,
@@ -30,7 +31,7 @@ _EXPONENTS = {
 _BINARY_PREFIXES = "KMGTPE"
 
 
-def parse_quantity(quantity):
+def parse_quantity(quantity: Union[str, int, float, Decimal]) -> Decimal:
     """
     Parse kubernetes canonical form quantity like 200Mi to a decimal number.
     Supported SI suffixes:
@@ -65,7 +66,7 @@ def parse_quantity(quantity):
     try:
         number = Decimal(number)
     except InvalidOperation:
-        raise ValueError("Invalid number format: {}".format(number))
+        raise ValueError(f"Invalid number format: {number}")
 
     if suffix is None:
         return number
@@ -73,24 +74,25 @@ def parse_quantity(quantity):
     if suffix.endswith("i"):
         # handle SI inconsistency: "ki", "mi", "ni" and "ui" are not valid binary suffixes
         if suffix[0] not in _BINARY_PREFIXES:
-            raise ValueError("{} has unknown suffix".format(quantity))
+            raise ValueError(f"{quantity} has unknown suffix")
         base = 1024
     elif len(suffix) == 1:
         base = 1000
     else:
-        raise ValueError("{} has unknown suffix".format(quantity))
+        raise ValueError(f"{quantity} has unknown suffix")
 
     if suffix[0] not in _EXPONENTS:
-        raise ValueError("{} has unknown suffix".format(quantity))
-
+        raise ValueError(f"{quantity} has unknown suffix")
     exponent = Decimal(_EXPONENTS[suffix[0]])
     try:
-        return number * (base ** exponent)
+        return number * (base**exponent)
     except DecimalException as exc:
-        raise ValueError("Invalid quantity: {}".format(quantity)) from exc
+        raise ValueError(f"Invalid quantity: {quantity}") from exc
 
 
-def format_quantity(quantity_value, suffix, quantize=None) -> str:
+def format_quantity(
+    quantity_value: Decimal, suffix: str, quantize=Union[Decimal | None]
+) -> str:
     """
     Takes a decimal and produces a string value in kubernetes' canonical quantity form,
     like "200Mi".Users can specify an additional decimal number to quantize the output.
@@ -141,6 +143,6 @@ def format_quantity(quantity_value, suffix, quantize=None) -> str:
         raise ValueError(f"{quantity_value} has unknown suffix")
 
     different_scale = quantity_value / (Decimal(base) ** _EXPONENTS[suffix[0]])
-    if quantize is not None:
+    if not quantize:
         different_scale = different_scale.quantize(quantize)
     return format(different_scale, "f") + suffix

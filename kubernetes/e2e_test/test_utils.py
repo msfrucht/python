@@ -24,7 +24,7 @@ from kubernetes.client.models.v1_object_meta import V1ObjectMeta
 from kubernetes.client.rest import ApiException
 from kubernetes.e2e_test import base
 from kubernetes.utils import quantity
-from kubernetes.utils.duration import Duration, format_duration, parse_duration
+from kubernetes.utils.duration import V1Duration, format_duration, parse_duration
 
 
 class TestUtils(unittest.TestCase):
@@ -881,7 +881,7 @@ class TestDuration(unittest.TestCase):
 
 
 class DurationSpec(BaseModel):
-    time_to_live: Duration = Field(validation_alias=AliasChoices("timeToLive", "time_to_live"), serialization_alias="timeToLive")
+    time_to_live: V1Duration = Field(validation_alias=AliasChoices("timeToLive", "time_to_live"), serialization_alias="timeToLive")
 class ObjectWithDuration(BaseModel):
     api_version: Optional[StrictStr] = Field(default=None, validation_alias=AliasChoices("apiVersion", "api_version"), serialization_alias="apiVersion", description="APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources")
     kind: Optional[StrictStr] = Field(default=None, description="Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds")
