@@ -11,12 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import List
-
 import datetime
 import re
+from typing import Annotated, List, Union
 
 import durationpy
+from pydantic import BeforeValidator, PlainSerializer
 
 # Initialize our RE statically, rather than compiling for every call. This has
 # the downside that it'll get compiled at import time but that shouldn't
@@ -28,7 +28,7 @@ reDuration = re.compile(r'^([0-9]{1,5}(h|m|s|ms)){1,4}$')
 maxDuration_ms = (((99999 * 3600) + (59 * 60) + 59) * 1_000) + 999
 
 
-def parse_duration(duration) -> datetime.timedelta:
+def parse_duration(duration: Union[str, datetime.timedelta]) -> datetime.timedelta:
     """
     Parse GEP-2257 Duration format to a datetime.timedelta object.
 
@@ -73,6 +73,9 @@ def parse_duration(duration) -> datetime.timedelta:
         ...
     ValueError: Invalid duration format: -1m
     """
+
+    if isinstance(duration, datetime.timedelta):
+        return duration
 
     if not reDuration.match(duration):
         raise ValueError("Invalid duration format: {}".format(duration))
@@ -172,3 +175,22 @@ def format_duration(delta: datetime.timedelta) -> str:
         output.append(f"{delta_us // 1000}ms")
 
     return "".join(output)
+
+"""
+Duration validator and serializer that can handle GEP-2257 Duration.
+
+Examples:
+class DurationSpec(BaseModel):
+    time_to_live: Duration = Field(validation_alias=AliasChoices("timeToLive", "time_to_live"), serialization_alias="timeToLive")
+>>> DurationSpec(time_to_live=datetime.timedelta(hours=1, minutes=5))
+DurationSpec(time_to_live=datetime.timedelta(seconds=3900))
+>>> DurationSpec.model_validate({"timeToLive": "2h3m7s"})
+DurationSpec(time_to_live=datetime.timedelta(seconds=7387))
+>>> DurationSpec.model_validate_json(r'{"timeToLive": "37s"}')
+DurationSpec(time_to_live=datetime.timedelta(seconds=37))
+"""
+Duration = Annotated[
+    datetime.timedelta,
+    BeforeValidator(func=parse_duration, json_schema_input_type="str"),
+    PlainSerializer(func=format_duration, return_type=str, when_used="unless-none"),
+]
